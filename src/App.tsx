@@ -9,8 +9,8 @@ import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CheckCircle2, Circle, Users, Flame, Calendar, Clock, Inbox } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { FamilyMember } from "./api/postgres-client";
-import { postgresClient } from "./api/postgres-client";
+import { FamilyMember } from "../api/postgres-client";
+import { postgresClient } from "../api/postgres-client";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 
 // デフォルトの家族メンバー（APIから取得できない場合のフォールバック）
