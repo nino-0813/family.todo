@@ -9,8 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CheckCircle2, Circle, Users, Flame, Calendar, Clock, Inbox } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { FamilyMember } from "../api/postgres-client";
-import { postgresClient } from "../api/postgres-client";
+import { FamilyMember, apiClient } from "./api/client";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 
 // デフォルトの家族メンバー（APIから取得できない場合のフォールバック）
@@ -103,17 +102,17 @@ export default function App() {
         setLoading(true);
         setError(null);
         
-        // Postgresからデータを取得
-        console.log('Loading data from Postgres...');
+        // APIからデータを取得
+        console.log('Loading data from API...');
         const [todosResponse, familyMembersResponse] = await Promise.all([
-          postgresClient.getTodos(),
-          postgresClient.getFamilyMembers()
+          apiClient.getTodos(),
+          apiClient.getFamilyMembers()
         ]);
         
         setTodos(todosResponse.todos);
         setFamilyMembers(familyMembersResponse.familyMembers);
       } catch (err) {
-        console.error('Failed to load data from Postgres:', err);
+        console.error('Failed to load data from API:', err);
         // フォールバック: LocalStorageを使用
         console.log('Falling back to LocalStorage...');
         const storedTodos = loadTodos();
@@ -136,8 +135,8 @@ export default function App() {
     category?: string
   ) => {
     try {
-      // Postgresに保存
-      const response = await postgresClient.createTodo({
+      // APIに保存
+      const response = await apiClient.createTodo({
         title,
         assignedTo,
         assignedToColor,
@@ -168,8 +167,8 @@ export default function App() {
     if (!todo) return;
 
     try {
-      // Postgresに保存
-      const response = await postgresClient.updateTodo(id, {
+      // APIに保存
+      const response = await apiClient.updateTodo(id, {
         completed: !todo.completed,
       });
       
@@ -199,8 +198,8 @@ export default function App() {
     const todo = todos.find(t => t.id === id);
     
     try {
-      // Postgresから削除
-      await postgresClient.deleteTodo(id);
+      // APIから削除
+      await apiClient.deleteTodo(id);
       
       const updatedTodos = todos.filter(t => t.id !== id);
       setTodos(updatedTodos);
@@ -226,8 +225,8 @@ export default function App() {
     try {
       const newPriority = todo.priority === 'high' ? 'normal' : 'high';
       
-      // Postgresに保存
-      const response = await postgresClient.updateTodo(id, {
+      // APIに保存
+      const response = await apiClient.updateTodo(id, {
         priority: newPriority,
       });
       
