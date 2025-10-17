@@ -1,10 +1,9 @@
 import { sql } from '@vercel/postgres';
 import { initializeDatabase } from './db';
 
-// データベースの初期化
-await initializeDatabase();
-
 export default async function handler(req: Request) {
+  // データベースの初期化
+  await initializeDatabase();
   const url = new URL(req.url);
   const method = req.method;
 
