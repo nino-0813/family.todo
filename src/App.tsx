@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CheckCircle2, Circle, Users, Flame, Calendar, Clock, Inbox } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { FamilyMember } from "./api/client";
+import { FamilyMember, blobClient } from "./api/blob-client";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 
 // デフォルトの家族メンバー（APIから取得できない場合のフォールバック）
@@ -102,16 +102,29 @@ export default function App() {
         setLoading(true);
         setError(null);
         
-        // LocalStorageを使用（APIは一時的に無効化）
-        console.log('Using LocalStorage for data persistence');
+        // Blob Storeからデータを取得
+        console.log('Loading data from Blob Store...');
+        const appData = await blobClient.getAppData();
+        
+        if (appData.todos.length > 0) {
+          setTodos(appData.todos);
+        } else {
+          // 初回またはデータがない場合はLocalStorageからフォールバック
+          const storedTodos = loadTodos();
+          setTodos(storedTodos);
+        }
+        
+        if (appData.familyMembers.length > 0) {
+          setFamilyMembers(appData.familyMembers);
+        } else {
+          setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
+        }
+      } catch (err) {
+        console.error('Failed to load data from Blob Store:', err);
+        // フォールバック: LocalStorageを使用
+        console.log('Falling back to LocalStorage...');
         const storedTodos = loadTodos();
         setTodos(storedTodos);
-        setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('データの読み込みに失敗しました');
-        // フォールバックとして初期データを使用
-        setTodos(INITIAL_TODOS);
         setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
       } finally {
         setLoading(false);
@@ -130,7 +143,6 @@ export default function App() {
     category?: string
   ) => {
     try {
-      // LocalStorageを使用（APIは一時的に無効化）
       const newTodo: Todo = {
         id: Date.now().toString(),
         title,
@@ -140,9 +152,16 @@ export default function App() {
         dueDate,
         priority,
         category,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       const updatedTodos = [newTodo, ...todos];
       setTodos(updatedTodos);
+      
+      // Blob Storeに保存
+      await blobClient.saveTodos(updatedTodos);
+      
+      // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
       
       toast.success("タスクを追加しました", {
@@ -161,11 +180,15 @@ export default function App() {
     if (!todo) return;
 
     try {
-      // LocalStorageを使用（APIは一時的に無効化）
       const updatedTodos = todos.map(t =>
-        t.id === id ? { ...t, completed: !t.completed } : t
+        t.id === id ? { ...t, completed: !t.completed, updatedAt: new Date().toISOString() } : t
       );
       setTodos(updatedTodos);
+      
+      // Blob Storeに保存
+      await blobClient.saveTodos(updatedTodos);
+      
+      // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
       
       if (!todo.completed) {
@@ -185,9 +208,13 @@ export default function App() {
     const todo = todos.find(t => t.id === id);
     
     try {
-      // LocalStorageを使用（APIは一時的に無効化）
       const updatedTodos = todos.filter(t => t.id !== id);
       setTodos(updatedTodos);
+      
+      // Blob Storeに保存
+      await blobClient.saveTodos(updatedTodos);
+      
+      // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
       
       toast.info("タスクを削除しました", {
@@ -208,11 +235,15 @@ export default function App() {
     try {
       const newPriority = todo.priority === 'high' ? 'normal' : 'high';
       
-      // LocalStorageを使用（APIは一時的に無効化）
       const updatedTodos = todos.map(t =>
-        t.id === id ? { ...t, priority: newPriority } : t
+        t.id === id ? { ...t, priority: newPriority, updatedAt: new Date().toISOString() } : t
       );
       setTodos(updatedTodos);
+      
+      // Blob Storeに保存
+      await blobClient.saveTodos(updatedTodos);
+      
+      // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
     } catch (err) {
       console.error('Failed to update todo priority:', err);

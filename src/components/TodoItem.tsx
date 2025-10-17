@@ -12,6 +12,8 @@ export interface Todo {
   dueDate?: string;
   priority?: 'high' | 'normal';
   category?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface TodoItemProps {
