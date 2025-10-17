@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CheckCircle2, Circle, Users, Flame, Calendar, Clock, Inbox } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { apiClient, FamilyMember } from "./api/client";
+import { FamilyMember } from "./api/client";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 
 // デフォルトの家族メンバー（APIから取得できない場合のフォールバック）
@@ -102,22 +102,11 @@ export default function App() {
         setLoading(true);
         setError(null);
         
-        // 開発環境ではLocalStorageを使用
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Development mode: Using LocalStorage');
-          const storedTodos = loadTodos();
-          setTodos(storedTodos);
-          setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
-        } else {
-          // 本番環境ではAPIを使用
-          const [todosResponse, familyMembersResponse] = await Promise.all([
-            apiClient.getTodos(),
-            apiClient.getFamilyMembers()
-          ]);
-          
-          setTodos(todosResponse.todos);
-          setFamilyMembers(familyMembersResponse.familyMembers);
-        }
+        // LocalStorageを使用（APIは一時的に無効化）
+        console.log('Using LocalStorage for data persistence');
+        const storedTodos = loadTodos();
+        setTodos(storedTodos);
+        setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
       } catch (err) {
         console.error('Failed to load data:', err);
         setError('データの読み込みに失敗しました');
@@ -141,34 +130,20 @@ export default function App() {
     category?: string
   ) => {
     try {
-      if (process.env.NODE_ENV === 'development') {
-        // 開発環境ではLocalStorageを使用
-        const newTodo: Todo = {
-          id: Date.now().toString(),
-          title,
-          completed: false,
-          assignedTo,
-          assignedToColor,
-          dueDate,
-          priority,
-          category,
-        };
-        const updatedTodos = [newTodo, ...todos];
-        setTodos(updatedTodos);
-        saveTodos(updatedTodos);
-      } else {
-        // 本番環境ではAPIを使用
-        const response = await apiClient.createTodo({
-          title,
-          assignedTo,
-          assignedToColor,
-          priority,
-          dueDate,
-          category,
-        });
-        
-        setTodos([response.todo, ...todos]);
-      }
+      // LocalStorageを使用（APIは一時的に無効化）
+      const newTodo: Todo = {
+        id: Date.now().toString(),
+        title,
+        completed: false,
+        assignedTo,
+        assignedToColor,
+        dueDate,
+        priority,
+        category,
+      };
+      const updatedTodos = [newTodo, ...todos];
+      setTodos(updatedTodos);
+      saveTodos(updatedTodos);
       
       toast.success("タスクを追加しました", {
         description: title,
@@ -186,23 +161,12 @@ export default function App() {
     if (!todo) return;
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        // 開発環境ではLocalStorageを使用
-        const updatedTodos = todos.map(t =>
-          t.id === id ? { ...t, completed: !t.completed } : t
-        );
-        setTodos(updatedTodos);
-        saveTodos(updatedTodos);
-      } else {
-        // 本番環境ではAPIを使用
-        const response = await apiClient.updateTodo(id, {
-          completed: !todo.completed,
-        });
-        
-        setTodos(todos.map(t =>
-          t.id === id ? response.todo : t
-        ));
-      }
+      // LocalStorageを使用（APIは一時的に無効化）
+      const updatedTodos = todos.map(t =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      );
+      setTodos(updatedTodos);
+      saveTodos(updatedTodos);
       
       if (!todo.completed) {
         toast.success("タスクを完了しました！🎉", {
@@ -221,16 +185,10 @@ export default function App() {
     const todo = todos.find(t => t.id === id);
     
     try {
-      if (process.env.NODE_ENV === 'development') {
-        // 開発環境ではLocalStorageを使用
-        const updatedTodos = todos.filter(t => t.id !== id);
-        setTodos(updatedTodos);
-        saveTodos(updatedTodos);
-      } else {
-        // 本番環境ではAPIを使用
-        await apiClient.deleteTodo(id);
-        setTodos(todos.filter(t => t.id !== id));
-      }
+      // LocalStorageを使用（APIは一時的に無効化）
+      const updatedTodos = todos.filter(t => t.id !== id);
+      setTodos(updatedTodos);
+      saveTodos(updatedTodos);
       
       toast.info("タスクを削除しました", {
         description: todo?.title,
@@ -250,23 +208,12 @@ export default function App() {
     try {
       const newPriority = todo.priority === 'high' ? 'normal' : 'high';
       
-      if (process.env.NODE_ENV === 'development') {
-        // 開発環境ではLocalStorageを使用
-        const updatedTodos = todos.map(t =>
-          t.id === id ? { ...t, priority: newPriority } : t
-        );
-        setTodos(updatedTodos);
-        saveTodos(updatedTodos);
-      } else {
-        // 本番環境ではAPIを使用
-        const response = await apiClient.updateTodo(id, {
-          priority: newPriority,
-        });
-        
-        setTodos(todos.map(t =>
-          t.id === id ? response.todo : t
-        ));
-      }
+      // LocalStorageを使用（APIは一時的に無効化）
+      const updatedTodos = todos.map(t =>
+        t.id === id ? { ...t, priority: newPriority } : t
+      );
+      setTodos(updatedTodos);
+      saveTodos(updatedTodos);
     } catch (err) {
       console.error('Failed to update todo priority:', err);
       toast.error("優先度の更新に失敗しました", {
