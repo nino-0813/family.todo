@@ -9,7 +9,8 @@ import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CheckCircle2, Circle, Users, Flame, Calendar, Clock, Inbox } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { FamilyMember, blobClient } from "./api/blob-client";
+import { FamilyMember } from "./api/postgres-client";
+import { postgresClient } from "./api/postgres-client";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 
 // デフォルトの家族メンバー（APIから取得できない場合のフォールバック）
@@ -102,25 +103,17 @@ export default function App() {
         setLoading(true);
         setError(null);
         
-        // Blob Storeからデータを取得
-        console.log('Loading data from Blob Store...');
-        const appData = await blobClient.getAppData();
+        // Postgresからデータを取得
+        console.log('Loading data from Postgres...');
+        const [todosResponse, familyMembersResponse] = await Promise.all([
+          postgresClient.getTodos(),
+          postgresClient.getFamilyMembers()
+        ]);
         
-        if (appData.todos.length > 0) {
-          setTodos(appData.todos);
-        } else {
-          // 初回またはデータがない場合はLocalStorageからフォールバック
-          const storedTodos = loadTodos();
-          setTodos(storedTodos);
-        }
-        
-        if (appData.familyMembers.length > 0) {
-          setFamilyMembers(appData.familyMembers);
-        } else {
-          setFamilyMembers(DEFAULT_FAMILY_MEMBERS);
-        }
+        setTodos(todosResponse.todos);
+        setFamilyMembers(familyMembersResponse.familyMembers);
       } catch (err) {
-        console.error('Failed to load data from Blob Store:', err);
+        console.error('Failed to load data from Postgres:', err);
         // フォールバック: LocalStorageを使用
         console.log('Falling back to LocalStorage...');
         const storedTodos = loadTodos();
@@ -143,23 +136,18 @@ export default function App() {
     category?: string
   ) => {
     try {
-      const newTodo: Todo = {
-        id: Date.now().toString(),
+      // Postgresに保存
+      const response = await postgresClient.createTodo({
         title,
-        completed: false,
         assignedTo,
         assignedToColor,
-        dueDate,
         priority,
+        dueDate,
         category,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      const updatedTodos = [newTodo, ...todos];
-      setTodos(updatedTodos);
+      });
       
-      // Blob Storeに保存
-      await blobClient.saveTodos(updatedTodos);
+      const updatedTodos = [response.todo, ...todos];
+      setTodos(updatedTodos);
       
       // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
@@ -180,16 +168,19 @@ export default function App() {
     if (!todo) return;
 
     try {
-      const updatedTodos = todos.map(t =>
-        t.id === id ? { ...t, completed: !t.completed, updatedAt: new Date().toISOString() } : t
-      );
-      setTodos(updatedTodos);
+      // Postgresに保存
+      const response = await postgresClient.updateTodo(id, {
+        completed: !todo.completed,
+      });
       
-      // Blob Storeに保存
-      await blobClient.saveTodos(updatedTodos);
+      setTodos(todos.map(t =>
+        t.id === id ? response.todo : t
+      ));
       
       // LocalStorageにもバックアップ保存
-      saveTodos(updatedTodos);
+      saveTodos(todos.map(t =>
+        t.id === id ? response.todo : t
+      ));
       
       if (!todo.completed) {
         toast.success("タスクを完了しました！🎉", {
@@ -208,11 +199,11 @@ export default function App() {
     const todo = todos.find(t => t.id === id);
     
     try {
+      // Postgresから削除
+      await postgresClient.deleteTodo(id);
+      
       const updatedTodos = todos.filter(t => t.id !== id);
       setTodos(updatedTodos);
-      
-      // Blob Storeに保存
-      await blobClient.saveTodos(updatedTodos);
       
       // LocalStorageにもバックアップ保存
       saveTodos(updatedTodos);
@@ -235,16 +226,19 @@ export default function App() {
     try {
       const newPriority = todo.priority === 'high' ? 'normal' : 'high';
       
-      const updatedTodos = todos.map(t =>
-        t.id === id ? { ...t, priority: newPriority, updatedAt: new Date().toISOString() } : t
-      );
-      setTodos(updatedTodos);
+      // Postgresに保存
+      const response = await postgresClient.updateTodo(id, {
+        priority: newPriority,
+      });
       
-      // Blob Storeに保存
-      await blobClient.saveTodos(updatedTodos);
+      setTodos(todos.map(t =>
+        t.id === id ? response.todo : t
+      ));
       
       // LocalStorageにもバックアップ保存
-      saveTodos(updatedTodos);
+      saveTodos(todos.map(t =>
+        t.id === id ? response.todo : t
+      ));
     } catch (err) {
       console.error('Failed to update todo priority:', err);
       toast.error("優先度の更新に失敗しました", {
